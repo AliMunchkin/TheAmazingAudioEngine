@@ -136,8 +136,19 @@ static void audioCallback(__unsafe_unretained AERecorder *THIS,
                           const AudioTimeStamp     *time,
                           UInt32                    frames,
                           AudioBufferList          *audio) {
-    if ( !THIS->_recording ) return;
     
+    //####################################### COCOAPOD SOURCE CHANGED ######################################
+    //######################################### ALEX: 21 July 2016 #########################################
+    //##### Fix for first record missing first data - mixer may discard a buffer or two while it starts ####
+    //########## up the first time, so here enqueue some dummy data until it's actually recording ##########
+    //######## This change must be made inside this C code so cannot be applied outside the Cocoapod #######
+    //######################################################################################################
+//  if ( !THIS->_recording ) return;
+    if ( !THIS->_recording ) {
+        AEMixerBufferEnqueue(THIS->_mixer, source, NULL, 0, NULL);
+        return;
+    }
+  
     AEMixerBufferEnqueue(THIS->_mixer, source, audio, frames, time);
     
     // Let the mixer buffer provide the audio buffer
