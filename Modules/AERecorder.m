@@ -137,6 +137,7 @@ static void audioCallback(__unsafe_unretained AERecorder *THIS,
                           UInt32                    frames,
                           AudioBufferList          *audio) {
     
+    //######################################################################################################
     //####################################### COCOAPOD SOURCE CHANGED ######################################
     //######################################### ALEX: 21 July 2016 #########################################
     //##### Fix for first record missing first data - mixer may discard a buffer or two while it starts ####
