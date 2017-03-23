@@ -279,6 +279,107 @@ typedef struct _channel_group_t {
 #endif
 @dynamic running, audioInputAvailable, inputGainAvailable, inputGain, audiobusSenderPort, inputAudioDescription, inputChannelSelection;
 
+
+//######################################################################################################
+//####################################### COCOAPOD SOURCE CHANGED ######################################
+//########################################## JUKKA: 8 Jan 2016 #########################################
+//################ Added methods for offline rendering (not natively supported by TAAE) ################
+//######################################################################################################
+BOOL AEAudioControllerRenderMainOutput(
+                                       __unsafe_unretained AEAudioController *audioController,
+                                       AudioTimeStamp inTimeStamp,
+                                       UInt32 inNumberFrames,
+                                       AudioBufferList *ioData
+                                       ) {
+    channel_producer_arg_t arg = {
+        .channel = audioController->_topChannel,
+        .timeStamp = inTimeStamp,
+        .originalTimeStamp = inTimeStamp,
+        .ioActionFlags = 0,
+        .nextFilterIndex = 0
+    };
+    OSStatus result = channelAudioProducer((void *) &arg, ioData, &inNumberFrames);
+    handleCallbacksForChannel(arg.channel, &inTimeStamp, inNumberFrames, ioData);
+    return result;
+}
+
+AEChannelGroupRef AEAudioControllerSearchForGroupContainingChannelMatchingPointer(
+                                                                                  __unsafe_unretained AEAudioController *THIS,
+                                                                                  void *ptr,
+                                                                                  void *userInfo,
+                                                                                  AEChannelGroupRef group,
+                                                                                  int *index) {
+    // Find the matching channel in the table for the given group
+    for (int i = 0; i < group->channelCount; i++) {
+        AEChannelRef channel = group->channels[i];
+        if (!channel) continue;
+        if (channel->ptr == ptr && channel->object == userInfo) {
+            if (index) *index = i;
+            return group;
+        }
+        if (channel->type == kChannelTypeGroup) {
+            AEChannelGroupRef match = AEAudioControllerSearchForGroupContainingChannelMatchingPointer(
+                                                                                                      THIS, ptr, userInfo, channel->ptr, index);
+            if (match)
+                return match;
+        }
+    }
+    return NULL;
+}
+
+void AEAudioControllerSetPlayingForChannel(__unsafe_unretained AEAudioController *THIS,
+                                           void *channel,
+                                           void *renderCallback,
+                                           BOOL playing,
+                                           BOOL muted
+                                           ) {
+    int index;
+    AEChannelGroupRef group = AEAudioControllerSearchForGroupContainingChannelMatchingPointer(
+                                                                                              THIS, renderCallback, channel, THIS->_topGroup, &index);
+    if (!group) return;
+    AEChannelRef channelElement = group->channels[index];
+    channelElement->playing = playing;
+    AudioUnitParameterValue value = playing && !muted;
+    if (group->mixerAudioUnit) {
+        /*OSStatus result = */AudioUnitSetParameter(
+                                                group->mixerAudioUnit,
+                                                kMultiChannelMixerParam_Enable,
+                                                kAudioUnitScope_Input,
+                                                index,
+                                                value,
+                                                0
+                                                );
+        //checkResult(result, "AudioUnitSetParameter(kMultiChannelMixerParam_Enable)");
+    }
+    group->channels[index]->playing = playing && !muted;
+}
+
+void AEAudioControllerSetMutedForChannel(
+                                         __unsafe_unretained AEAudioController *THIS,
+                                         void *channel,
+                                         void *renderCallback,
+                                         BOOL muted
+                                         ) {
+    int index;
+    AEChannelGroupRef group = AEAudioControllerSearchForGroupContainingChannelMatchingPointer(THIS, renderCallback, channel, THIS->_topGroup, &index);
+    if (!group) return;
+    AEChannelRef channelElement = group->channels[index];
+    channelElement->muted = muted;
+    AudioUnitParameterValue value = channelElement->playing && !muted;
+    if (group->mixerAudioUnit) {
+        /*OSStatus result = */AudioUnitSetParameter(
+                                                group->mixerAudioUnit,
+                                                kMultiChannelMixerParam_Enable,
+                                                kAudioUnitScope_Input,
+                                                index,
+                                                value,
+                                                0
+                                                );
+//      checkResult(result, "AudioUnitSetParameter(kMultiChannelMixerParam_Enable)");
+    }
+}
+
+
 #pragma mark -
 #pragma mark Input and render callbacks
 
