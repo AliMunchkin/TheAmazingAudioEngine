@@ -1351,7 +1351,19 @@ NSTimeInterval AEConvertFramesToSeconds(__unsafe_unretained AEAudioController *a
  */
 BOOL AECurrentThreadIsAudioThread(void);
 
+//######################################################################################################
+//####################################### COCOAPOD SOURCE CHANGED ######################################
+//########################################## JUKKA: 8 Jan 2016 #########################################
+//################ Added methods for offline rendering (not natively supported by TAAE) ################
+//######################################################################################################
+#pragma mark - Extra functions for offline rendering
+
+BOOL AEAudioControllerRenderMainOutput(__unsafe_unretained AEAudioController *audioController,AudioTimeStamp inTimeStamp,UInt32 inNumberFrames,AudioBufferList *ioData);
+void AEAudioControllerSetPlayingForChannel(__unsafe_unretained AEAudioController *THIS,void *channel,void *renderCallback,BOOL playing,BOOL muted);
+void AEAudioControllerSetMutedForChannel(__unsafe_unretained AEAudioController *THIS,void *channel,void *renderCallback,BOOL muted);
+
 ///@}
+
 #pragma mark - Properties
 
 /*!
